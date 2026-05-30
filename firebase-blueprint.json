@@ -1,0 +1,75 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Application user profile",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["farm_owner", "worker", "logistics"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Farm": {
+      "title": "Farm",
+      "description": "Farm details and location",
+      "type": "object",
+      "properties": {
+        "farmId": { "type": "string" },
+        "ownerId": { "type": "string", "description": "Reference to User uid" },
+        "farmName": { "type": "string" },
+        "location": { "type": "object", "description": "GeoPoint {lat, lng}" },
+        "totalArea": { "type": "number", "description": "Acres/Hectares" },
+        "currentCrops": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["farmId", "ownerId", "farmName", "location"]
+    },
+    "Worker": {
+      "title": "Worker",
+      "description": "Farm worker details",
+      "type": "object",
+      "properties": {
+        "workerId": { "type": "string", "description": "Reference to User uid" },
+        "assignedFarmId": { "type": "string", "description": "Reference to Farm farmId" },
+        "dailyWage": { "type": "number" },
+        "attendanceRecord": { "type": "object", "description": "Map of Dates to Booleans" }
+      },
+      "required": ["workerId", "assignedFarmId"]
+    },
+    "LogisticsBooking": {
+      "title": "Logistics Booking",
+      "description": "Truck booking for crop transport",
+      "type": "object",
+      "properties": {
+        "bookingId": { "type": "string" },
+        "farmId": { "type": "string" },
+        "pickupLocation": { "type": "object" },
+        "dropoffLocation": { "type": "object" },
+        "truckType": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "in_transit", "delivered"] }
+      },
+      "required": ["bookingId", "farmId", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/farms/{farmId}": {
+      "schema": "Farm",
+      "description": "Farm records"
+    },
+    "/workers/{workerId}": {
+      "schema": "Worker",
+      "description": "Worker assignments and records"
+    },
+    "/logistics_bookings/{bookingId}": {
+      "schema": "LogisticsBooking",
+      "description": "Logistics and truck bookings"
+    }
+  }
+}

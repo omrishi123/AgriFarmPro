@@ -1,0 +1,6 @@
+{
+  "name": "AgriFarm Pro",
+  "description": "A comprehensive agriculture and farm management application with AI-powered crop analysis, worker management, and logistics tracking.",
+  "requestFramePermissions": ["geolocation", "camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

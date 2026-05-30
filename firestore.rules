@@ -1,0 +1,122 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {uid}
+    // Fields:
+    //   - uid: string (required) - Firebase Auth UID
+    //   - email: string (required, format: email) - User email
+    //   - displayName: string (optional) - User display name
+    //   - role: string (required, enum: ['farm_owner', 'worker', 'logistics']) - User role
+    //   - createdAt: timestamp (optional) - Creation time
+    //
+    // Collection: farms
+    // Document ID: {farmId}
+    // Fields:
+    //   - farmId: string (required) - Farm ID
+    //   - ownerId: string (required) - Reference to User uid
+    //   - farmName: string (required) - Farm name
+    //   - location: map (required) - GeoPoint {lat, lng}
+    //   - totalArea: number (optional) - Acres/Hectares
+    //   - currentCrops: list (optional) - Array of strings
+    //
+    // Collection: workers
+    // Document ID: {workerId}
+    // Fields:
+    //   - workerId: string (required) - Reference to User uid
+    //   - assignedFarmId: string (required) - Reference to Farm farmId
+    //   - dailyWage: number (optional) - Daily wage
+    //   - attendanceRecord: map (optional) - Map of date strings to booleans
+    //
+    // Collection: logistics_bookings
+    // Document ID: {bookingId}
+    // Fields:
+    //   - bookingId: string (required) - Booking ID
+    //   - farmId: string (required) - Farm ID
+    //   - pickupLocation: map (optional) - GeoPoint {lat, lng}
+    //   - dropoffLocation: map (optional) - GeoPoint {lat, lng}
+    //   - truckType: string (optional) - Truck type
+    //   - status: string (required, enum: ['pending', 'in_transit', 'delivered']) - Booking status
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "mahtopradeep802@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role']) &&
+             data.uid is string && data.uid.size() > 0 &&
+             data.email is string && data.email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$") &&
+             data.role in ['farm_owner', 'worker', 'logistics', 'admin'];
+    }
+
+    function isValidFarm(data) {
+      return data.keys().hasAll(['farmId', 'ownerId', 'farmName', 'location']) &&
+             data.farmId is string && data.ownerId is string &&
+             data.farmName is string && data.farmName.size() > 0 && data.farmName.size() < 100 &&
+             data.location is map;
+    }
+
+    function isValidWorker(data) {
+      return data.keys().hasAll(['workerId', 'assignedFarmId']) &&
+             data.workerId is string && data.assignedFarmId is string;
+    }
+
+    function isValidBooking(data) {
+      return data.keys().hasAll(['bookingId', 'farmId', 'status']) &&
+             data.bookingId is string && data.farmId is string &&
+             data.status in ['pending', 'in_transit', 'delivered'];
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{uid} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isOwner(uid) && isValidUser(request.resource.data) && (request.resource.data.role != 'admin' || isAdmin());
+      allow update: if isAuthenticated() && isOwner(uid) && isValidUser(request.resource.data) && (request.resource.data.role == resource.data.role || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /farms/{farmId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isOwner(request.resource.data.ownerId) && isValidFarm(request.resource.data);
+      allow update: if isAuthenticated() && isOwner(resource.data.ownerId) && isValidFarm(request.resource.data);
+      allow delete: if isAuthenticated() && isOwner(resource.data.ownerId);
+    }
+
+    match /workers/{workerId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidWorker(request.resource.data);
+      allow update: if isAuthenticated() && isValidWorker(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /logistics_bookings/{bookingId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidBooking(request.resource.data);
+      allow update: if isAuthenticated() && isValidBooking(request.resource.data);
+      allow delete: if isAdmin();
+    }
+  }
+}
